@@ -1,128 +1,137 @@
-# 🎮 Smart Stick Drift Correction
+# Smart Stick Drift Correction
 
 ![Version](https://img.shields.io/badge/version-1.0.0-22d3ee)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Web-10b981)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-**Smart Stick Drift Correction** — интеллектуальная система диагностики и адаптивной DSP-коррекции дрифта аналоговых стиков геймпада. Вместо грубой статической мёртвой зоны приложение разделяет **смещение центра (bias)**, **высокочастотный шум потенциометра**, **механический люфт (гистерезис пружины)** и **импульсные провалы контакта (wiper dropouts)**, сохраняя точность мелких намеренных движений и полный ход стика `-1.0 … +1.0`.
+**Smart Stick Drift Correction** is a diagnostic utility and adaptive DSP pipeline for mitigating analog stick drift on gamepads. Instead of applying a static radial deadzone that degrades fine aiming control, it separates center bias, high-frequency potentiometer noise, mechanical spring hysteresis, and transient wiper contact dropouts while preserving full `-1.0` to `+1.0` stick travel.
 
 ---
 
-## ✨ Ключевые возможности
+## Overview
 
-1. **Интеллектуальный анализ стика в реальном времени**
-   - Непрерывный мониторинг координат `X/Y`, RMS-уровня шума, вектора смещения центра и количества подавленных скачков.
-   - Автоматическая классификация состояния: `Норма`, `Смещение центра`, `Высокочастотный шум`, `Импульсные скачки`, `Комплексный дрифт`.
-2. **Многоступенчатый адаптивный DSP-пайплайн (125 Гц)**
-   - **Компенсация смещения центра + асимметричное масштабирование**: вычитает смещение нейтрали и пересчитывает рабочий ход так, чтобы стик достигал полных `100%` во всех направлениях без обрезания круга.
-   - **Мост удержания при провалах контакта (Wiper Dropout Bridge)**: удерживает траекторию при кратковременных обрывах дорожки потенциометра (`1–3 кадра`), не позволяя стику резко дёргаться к центру во время движения.
-   - **Медианный пре-фильтр (3 / 5 точек)**: вырезает импульсные выбросы по всей амплитуде отклонения (`0..1`).
-   - **Адаптивный One-Euro фильтр с ограничением производной**: плавно гасит дребезг в покое и при удержании, но мгновенно реагирует на быстрые намеренные движения.
-   - **Динамическая мёртвая зона с защитой микро-аима**: адаптируется к измеренному шуму и гистерезису возвратной пружины, плавно масштабируя выход от границы зоны нечувствительности.
-3. **Автоматическая калибровка с защитой от движения**
-   - Отклоняет замер, если пользователь двигает стик во время калибровки или если стик зажат в стороне.
-   - Автоматическая самопроверка при старте виртуального контроллера.
-4. **Виртуальный геймпад для Linux (`evdev` → `uinput`)**
-   - Захватывает физический контроллер через `EVIOCGRAB` (защита от двойного ввода в играх).
-   - Создаёт виртуальный геймпад `SmartDrift Virtual (...)` с `fuzz=0, flat=0` и строгим таймером **125 Гц (`8.0 мс`)** на базе прямого чтения `EVIOCGABS`.
-5. **Веб-интерфейс диагностики + Симулятор дрифта**
-   - Работает из коробки без внешних Python-зависимостей.
-   - Векторные области обоих стиков, осциллограф `Raw vs Corrected`, встроенный симулятор неисправностей и система бенчмаркинга качества.
+Traditional deadzone implementations zero out all input within a fixed radius around the origin. As a stick degrades, users are forced to increase this radius, creating a wide unresponsive zone and step discontinuities during micro-adjustments.
+
+This project replaces static deadzones with a fixed-rate 125 Hz multi-stage signal processing pipeline:
+
+1. **Center Bias Compensation & Asymmetric Rescaling**
+   Measures and subtracts static resting offset, then rescales positive and negative axis ranges independently so the stick still reaches full `100%` deflection in every direction without clipping the circularity envelope.
+2. **Wiper Dropout Bridge**
+   Detects implausible single-tick velocity jumps caused by transient open-circuit contact dropouts on worn carbon tracks (1 to 3 frames) and holds trajectory continuity instead of snapping toward center mid-sweep.
+3. **Median Pre-Filter (3-point / 5-point)**
+   Eliminates impulse spikes across the entire deflection range (`0.0` to `1.0`) prior to derivative estimation.
+4. **Derivative-Bounded One-Euro Filter**
+   Adapts low-pass cutoff frequency dynamically based on movement speed: heavy smoothing at rest or steady hold, minimal phase lag during intentional flicks.
+5. **Dynamic Deadzone & Sustained-Rest Zero Lock**
+   Sizes the deadzone threshold from the calibrated RMS noise floor and spring return hysteresis, remapping output smoothly from the deadzone boundary and locking to `0.00, 0.00` once the stick remains at rest.
 
 ---
 
-## 🏗️ Архитектура
+## Architecture
 
 ```mermaid
 flowchart LR
-    A["Физический геймпад<br/>(/dev/input/eventX)"] -->|EVIOCGRAB + EVIOCGABS 125 Hz| B["Компенсация Bias<br/>+ Масштабирование"]
+    A["Physical Gamepad<br/>(/dev/input/eventX)"] -->|EVIOCGRAB + EVIOCGABS 125 Hz| B["Bias Compensation<br/>+ Range Rescaling"]
     B --> C["Dropout Bridge<br/>+ 5-pt Median"]
     C --> D["Adaptive One-Euro<br/>Low-Pass Filter"]
-    D --> E["Динамическая Deadzone<br/>+ Защита микро-аима"]
-    E -->|uinput (fuzz=0, flat=0)| F["SmartDrift Virtual Gamepad<br/>(Игры / Steam / Wine)"]
+    D --> E["Dynamic Deadzone<br/>+ Radial Remapping"]
+    E -->|uinput (fuzz=0, flat=0)| F["SmartDrift Virtual Gamepad<br/>(Games / Steam / Wine)"]
 ```
 
 ---
 
-## 📊 Сравнение: Обычная мёртвая зона vs Smart Adaptive DSP
+## Comparison: Static Deadzone vs. Adaptive DSP
 
-| Параметр | Обычная мёртвая зона (Static Deadzone) | Smart Stick Drift Correction |
+| Metric | Static Deadzone | Smart Stick Drift Correction |
 | :--- | :--- | :--- |
-| **Смещение центра (Bias)** | Требует раздувания мёртвой зоны на величину смещения | Вычитается векторно + восстанавливается симметрия хода `-1..+1` |
-| **Микро-прицеливание (FPS)** | «Ступенька» и потеря чувствительности около центра | Плавное радиальное масштабирование от границы шума |
-| **Срывы дорожки при движении** | Никак не фильтруются вне центра — стик дёргается | Подавляются Dropout Bridge + медианным и One-Euro фильтрами |
-| **Возврат в `0.00, 0.00`** | Зависит от износа пружины | Детектор устойчивого покоя плавно доводит стик ровно в `0.00, 0.00` |
+| **Center Offset (Bias)** | Requires enlarging deadzone to cover the offset | Vector-subtracted with full `-1.0 .. +1.0` range restoration |
+| **Micro-Aiming (FPS)** | Unresponsive core and abrupt step threshold | Smooth radial remapping starting right above the noise floor |
+| **Mid-Sweep Wiper Dropouts** | Unfiltered outside the center radius; causes severe jerks | Suppressed by Dropout Bridge, median filter, and bounded One-Euro |
+| **Return to Zero (`0.00, 0.00`)** | Varies with mechanical spring wear | Sustained-rest detector settles output cleanly to `0.00, 0.00` |
 
 ---
 
-## 🚀 Быстрый старт
+## Installation
 
-### 1. Установка зависимостей (для виртуального контроллера Linux)
+### Dependencies (Linux Virtual Controller)
 
 **Arch Linux / Manjaro / CachyOS:**
 ```bash
 sudo pacman -S python-evdev
 ```
 
-**Ubuntu / Debian / Fedora (или через pip):**
+**Debian / Ubuntu / Fedora (or via pip):**
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Запуск виртуального геймпада для игр (Linux `evdev` → `uinput`)
+The web diagnostics interface uses only the Python 3 standard library and requires no third-party packages.
 
-Посмотрите список подключённых устройств ввода:
+---
+
+## Usage
+
+### 1. Linux Virtual Gamepad Bridge (`evdev` to `uinput`)
+
+List available input devices:
 ```bash
 sudo python3 linux_virtual_pad.py --list
 ```
 
-Запустите виртуальный контроллер с автокалибровкой (не трогайте стики первые 1.5 секунды):
+Start the virtual controller with automatic startup calibration (leave both sticks untouched for 1.5 seconds):
 ```bash
 sudo python3 linux_virtual_pad.py --device /dev/input/event21 --profile action --calibrate
 ```
 
-Доступные профили (`--profile`):
-- `fps` — минимальная задержка (`~2 мс`) и максимальная отзывчивость мелких движений.
-- `action` — сбалансированная фильтрация и защита от срывов потенциометра *(рекомендуется)*.
-- `racing` — повышенная плавность руления.
-- `heavy` — максимальная стабилизация для сильно изношенных стиков с провалами контакта.
+Key behaviors:
+- Acquires an exclusive grab (`EVIOCGRAB`) on the physical device so games do not receive duplicate input from both physical and virtual controllers.
+- Creates a virtual `uinput` controller (`SmartDrift Virtual (...)`) with kernel `fuzz=0` and `flat=0` on stick axes.
+- Polls authoritative hardware axis positions via `EVIOCGABS` on a strict 125 Hz (`8.0 ms`) clock.
+- Automatically validates saved `config.json` centers against live resting hardware positions on startup.
 
-### 3. Запуск веб-интерфейса диагностики и симулятора
+Available profiles (`--profile`):
+- `fps` — lowest latency (`~2 ms`) and highest sensitivity for fine aiming adjustments.
+- `action` — balanced smoothing and wiper dropout protection (recommended default).
+- `racing` — higher smoothing for steady steering inputs.
+- `heavy` — maximum stabilization for heavily worn potentiometers with frequent contact dropouts.
 
+### 2. Web Diagnostics & Drift Simulator
+
+Start the local diagnostic server:
 ```bash
 python3 server.py
 ```
-Откройте в браузере **[http://127.0.0.1:8765](http://127.0.0.1:8765)**.
-- Поддерживается подключение реального геймпада через **Web Gamepad API** и встроенный **Симулятор дрифта**.
-- Доступна тонкая ручная настройка параметров (`Custom`), сохранение `config.json` и встроенный тест качества (**«Запустить тест качества»**).
 
----
+Open `http://127.0.0.1:8765` in a browser.
+- Supports live controllers via the **Web Gamepad API** as well as a built-in **Drift Simulator** (configurable center bias, potentiometer jitter, impulse spikes, slow thermal drift, and micro-aiming patterns).
+- Provides real-time XY vector scopes, an oscilloscope view (`Raw` vs. `Corrected`), manual filter tuning (`Custom` profile), configuration export to `config.json`, and an automated quality benchmark suite.
 
-## 🧪 Система проверки качества (CLI Benchmark)
+### 3. CLI Quality Benchmark
 
-Запуск эталонного теста качества по всем профилям:
+Run the synthetic verification benchmark across all profiles:
 ```bash
 python3 dsp_engine.py
 ```
 
-Проверяемые метрики:
-- **Остаточный дрифт (`residual_drift_pct`)** — `0.0%` в покое после калибровки.
-- **Задержка DSP (`avg_latency_ms`)** — `~0.011 мс` процессорного времени на кадр.
-- **Подавление импульсных скачков (`spikes_suppressed`)** и отсутствие ложных срабатываний (`false_positives = 0`).
+Evaluated metrics:
+- `residual_drift_pct` — remaining drift magnitude at rest after calibration (`0.0%`).
+- `avg_latency_ms` — per-frame DSP execution time (`~0.011 ms`).
+- `micro_accuracy_pct` — tracking accuracy on fine low-amplitude ramps.
+- `spikes_suppressed` and `false_positives`.
 
 ---
 
-## 📁 Структура проекта
+## Project Structure
 
-- `dsp_engine.py` — ядро цифровой обработки сигнала (One-Euro фильтр, медианный фильтр, Dropout Bridge, автокалибровка, бенчмарк качества).
-- `linux_virtual_pad.py` — системный мост `evdev` → `uinput` (125 Гц, `EVIOCGRAB`, автоочистка старых процессов, самопроверка калибровки).
-- `server.py` — локальный HTTP-сервер диагностики и API конфигурации.
-- `web/` — интерфейс диагностики в тёмной теме (`index.html`, `style.css`, `app.js`, `dsp.js`).
-- `config.json` — сохранённые параметры профиля и калибровки стиков.
+- `dsp_engine.py` — Core signal processing pipeline (`OneEuroFilter1D`, `AdaptiveStickCorrector`, calibration validation, quality benchmark).
+- `linux_virtual_pad.py` — Linux `evdev` to `uinput` virtual controller daemon (125 Hz fixed-step loop, `EVIOCGRAB`, automatic stale process cleanup).
+- `server.py` — Local HTTP server for the web diagnostics interface and JSON configuration API.
+- `web/` — Dark-theme hardware diagnostics frontend (`index.html`, `style.css`, `app.js`, `dsp.js`).
+- `config.json` — Persisted calibration data and active profile parameters.
 
 ---
 
-## 📄 Лицензия
+## License
 
-Проект распространяется под лицензией [MIT](LICENSE).
+Released under the [MIT License](LICENSE).

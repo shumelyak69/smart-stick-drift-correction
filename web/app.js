@@ -8,19 +8,16 @@ let activeProfileName = "action";
 let inputSource = "simulator";
 let scopeStick = "left";
 
-// Calibration state
 let calibrating = false;
 let calStartTime = 0;
 const CAL_DURATION_MS = 2500;
 let calSamplesL = [];
 let calSamplesR = [];
 
-// Oscilloscope ring buffer
 const SCOPE_LEN = 220;
 const scopeRaw = new Array(SCOPE_LEN).fill(0);
 const scopeOut = new Array(SCOPE_LEN).fill(0);
 
-// DOM elements
 const el = (id) => document.getElementById(id);
 const canvasLeft = el("canvasLeft");
 const ctxLeft = canvasLeft.getContext("2d");
@@ -36,7 +33,6 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove("show"), 2600);
 }
 
-// --- Profiles UI ---
 function renderProfiles() {
   const grid = el("profilesGrid");
   grid.innerHTML = "";
@@ -44,13 +40,13 @@ function renderProfiles() {
     const p = PROFILES[key];
     const btn = document.createElement("button");
     btn.className = "profile-btn" + (key === activeProfileName ? " active" : "");
-    btn.innerHTML = `<div class="p-name">${p.label}</div><div class="p-desc">${p.maxLatencyMs} мс</div>`;
+    btn.innerHTML = `<div class="p-name">${p.label}</div><div class="p-desc">${p.maxLatencyMs} ms</div>`;
     btn.addEventListener("click", () => selectProfile(key));
     grid.appendChild(btn);
   }
   const active = PROFILES[activeProfileName];
   el("profileDesc").textContent = active.description;
-  el("modeLabel").textContent = `Режим: ${active.label} (адаптивный)`;
+  el("modeLabel").textContent = `Mode: ${active.label} (Adaptive)`;
   syncSlidersFromProfile(leftCorr.profile);
 }
 
@@ -70,7 +66,7 @@ function syncSlidersFromProfile(p) {
   el("slMicro").value = p.microSensitivity;
   el("valMicro").textContent = Math.round(p.microSensitivity * 100) + "%";
   el("slLatency").value = p.maxLatencyMs;
-  el("valLatency").textContent = p.maxLatencyMs.toFixed(1) + " мс";
+  el("valLatency").textContent = p.maxLatencyMs.toFixed(1) + " ms";
 }
 
 function applyCustomSlider() {
@@ -94,14 +90,12 @@ function applyCustomSlider() {
   el(id).addEventListener("input", applyCustomSlider);
 });
 
-// --- Simulator Toggles ---
 el("simBias").addEventListener("change", (e) => (simulator.config.bias = e.target.checked));
 el("simJitter").addEventListener("change", (e) => (simulator.config.jitter = e.target.checked));
 el("simSpikes").addEventListener("change", (e) => (simulator.config.spikes = e.target.checked));
 el("simThermal").addEventListener("change", (e) => (simulator.config.thermal = e.target.checked));
 el("simMicroAim").addEventListener("change", (e) => (simulator.config.microAim = e.target.checked));
 
-// --- Input Source ---
 el("inputSource").addEventListener("change", (e) => {
   inputSource = e.target.value;
   el("simPanel").style.display = inputSource === "simulator" ? "block" : "none";
@@ -114,21 +108,20 @@ el("scopeStick").addEventListener("change", (e) => {
 });
 
 window.addEventListener("gamepadconnected", (e) => {
-  el("gamepadStatus").textContent = `Подключён геймпад: ${e.gamepad.id}`;
+  el("gamepadStatus").textContent = `Connected Gamepad: ${e.gamepad.id}`;
   inputSource = "gamepad";
   el("inputSource").value = "gamepad";
   el("simPanel").style.display = "none";
-  showToast("Геймпад обнаружен и активирован");
+  showToast("Gamepad connected and activated");
 });
 
 window.addEventListener("gamepaddisconnected", () => {
-  el("gamepadStatus").textContent = "Геймпад отключён — переключено на Симулятор";
+  el("gamepadStatus").textContent = "Gamepad disconnected — switched to Drift Simulator";
   inputSource = "simulator";
   el("inputSource").value = "simulator";
   el("simPanel").style.display = "block";
 });
 
-// --- Calibration ---
 el("btnCalibrate").addEventListener("click", () => {
   if (calibrating) return;
   calibrating = true;
@@ -142,10 +135,9 @@ el("btnCalibrate").addEventListener("click", () => {
 el("btnResetCal").addEventListener("click", () => {
   leftCorr.resetCalibration();
   rightCorr.resetCalibration();
-  showToast("Калибровка сброшена");
+  showToast("Calibration reset");
 });
 
-// --- Save / Load Config ---
 el("btnSaveConfig").addEventListener("click", async () => {
   const payload = {
     profile: activeProfileName,
@@ -162,10 +154,10 @@ el("btnSaveConfig").addEventListener("click", async () => {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (data.ok) showToast("Сохранено в config.json (готово для linux_virtual_pad.py)");
-    else showToast("Ошибка сохранения: " + (data.error || "unknown"));
+    if (data.ok) showToast("Saved to config.json");
+    else showToast("Save error: " + (data.error || "unknown"));
   } catch {
-    showToast("Сервер недоступен");
+    showToast("Server unavailable");
   }
 });
 
@@ -187,29 +179,27 @@ async function loadSavedConfig() {
   }
 }
 
-// --- Quality Benchmark ---
 el("btnBenchmark").addEventListener("click", async () => {
   el("btnBenchmark").disabled = true;
-  el("btnBenchmark").textContent = "Тестирование...";
+  el("btnBenchmark").textContent = "Running...";
   try {
     const res = await fetch(`/api/benchmark?profile=${encodeURIComponent(activeProfileName)}`);
     const data = await res.json();
     el("bResidual").textContent = `${data.residual_drift_pct}%`;
-    el("bLatency").textContent = `${data.avg_latency_ms} мс`;
+    el("bLatency").textContent = `${data.avg_latency_ms} ms`;
     el("bMicro").textContent = `${data.micro_accuracy_pct}%`;
     el("bSpikes").textContent = `${data.spikes_suppressed}`;
     el("bFalse").textContent = `${data.false_positives}`;
     el("bStability").textContent = `${data.stability_score}%`;
-    showToast(`Тест качества завершён (${data.profile.toUpperCase()})`);
+    showToast(`Quality benchmark complete (${data.profile.toUpperCase()})`);
   } catch {
-    showToast("Ошибка запуска бенчмарка");
+    showToast("Failed to run benchmark");
   } finally {
     el("btnBenchmark").disabled = false;
-    el("btnBenchmark").textContent = "Запустить тест качества";
+    el("btnBenchmark").textContent = "Run Quality Benchmark";
   }
 });
 
-// --- Canvas Renderers ---
 function drawStick(ctx, diag, cal) {
   const w = ctx.canvas.width;
   const h = ctx.canvas.height;
@@ -219,7 +209,6 @@ function drawStick(ctx, diag, cal) {
 
   ctx.clearRect(0, 0, w, h);
 
-  // Outer ring & crosshair
   ctx.strokeStyle = "#233044";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -233,7 +222,6 @@ function drawStick(ctx, diag, cal) {
   ctx.lineTo(cx, cy + r);
   ctx.stroke();
 
-  // Dynamic deadzone circle
   ctx.strokeStyle = "rgba(34, 211, 238, 0.35)";
   ctx.fillStyle = "rgba(34, 211, 238, 0.08)";
   ctx.beginPath();
@@ -241,7 +229,6 @@ function drawStick(ctx, diag, cal) {
   ctx.fill();
   ctx.stroke();
 
-  // Calibrated center marker
   if (cal.calibrated) {
     ctx.strokeStyle = "rgba(245, 158, 11, 0.6)";
     ctx.beginPath();
@@ -250,7 +237,6 @@ function drawStick(ctx, diag, cal) {
     ctx.stroke();
   }
 
-  // Raw position (orange)
   const rx = cx + diag.rawX * r;
   const ry = cy + diag.rawY * r;
   ctx.fillStyle = "rgba(249, 115, 22, 0.85)";
@@ -258,7 +244,6 @@ function drawStick(ctx, diag, cal) {
   ctx.arc(rx, ry, 5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Corrected position (cyan)
   const ox = cx + diag.outX * r;
   const oy = cy + diag.outY * r;
   ctx.fillStyle = "#22d3ee";
@@ -272,7 +257,6 @@ function drawScope() {
   const h = canvasScope.height;
   ctxScope.clearRect(0, 0, w, h);
 
-  // Grid
   ctxScope.strokeStyle = "#1c2635";
   ctxScope.lineWidth = 1;
   for (let i = 1; i < 4; i++) {
@@ -301,14 +285,13 @@ function drawScope() {
 }
 
 const FAULT_LABELS = {
-  normal: { text: "Норма", cls: "badge-ok" },
-  bias: { text: "Смещение центра", cls: "badge-warn" },
-  jitter: { text: "Высокочастотный шум", cls: "badge-warn" },
-  spikes: { text: "Импульсные скачки", cls: "badge-danger" },
-  complex: { text: "Комплексный дрифт", cls: "badge-danger" },
+  normal: { text: "Nominal", cls: "badge-ok" },
+  bias: { text: "Center Offset", cls: "badge-warn" },
+  jitter: { text: "High-Freq Jitter", cls: "badge-warn" },
+  spikes: { text: "Impulse Spikes", cls: "badge-danger" },
+  complex: { text: "Compound Drift", cls: "badge-danger" },
 };
 
-// --- Main Loop ---
 let lastTime = performance.now();
 
 function tick(now) {
@@ -334,7 +317,6 @@ function tick(now) {
     ry = s.ry;
   }
 
-  // Handle calibration sampling
   if (calibrating) {
     calSamplesL.push([lx, ly]);
     calSamplesR.push([rx, ry]);
@@ -348,7 +330,7 @@ function tick(now) {
       const resL = leftCorr.calibrateFromSamples(calSamplesL);
       const resR = rightCorr.calibrateFromSamples(calSamplesR);
       if (resL.ok && resR.ok) {
-        showToast("Автокалибровка обоих стиков завершена!");
+        showToast("Auto-calibration completed for both sticks.");
       } else {
         showToast(!resL.ok ? resL.message : resR.message);
       }
@@ -368,7 +350,6 @@ function tick(now) {
   scopeOut.shift();
   drawScope();
 
-  // Update telemetry
   el("lRaw").textContent = `${dL.rawX.toFixed(3)}, ${dL.rawY.toFixed(3)}`;
   el("lOut").textContent = `${dL.outX.toFixed(3)}, ${dL.outY.toFixed(3)}`;
   el("rRaw").textContent = `${dR.rawX.toFixed(3)}, ${dR.rawY.toFixed(3)}`;
@@ -381,14 +362,14 @@ function tick(now) {
 
   el("mBias").textContent = `${(dL.biasMag * 100).toFixed(1)}%`;
   el("mCalState").textContent = leftCorr.calibration.calibrated
-    ? `Откалиброван (${leftCorr.calibration.center_x.toFixed(3)}, ${leftCorr.calibration.center_y.toFixed(3)})`
-    : "Не откалиброван";
+    ? `Calibrated (${leftCorr.calibration.center_x.toFixed(3)}, ${leftCorr.calibration.center_y.toFixed(3)})`
+    : "Uncalibrated";
   el("mDynDz").textContent = `${(dL.dynamicDeadzone * 100).toFixed(1)}%`;
-  el("mNoise").textContent = `Шум RMS: ${dL.noiseRms.toFixed(4)}`;
+  el("mNoise").textContent = `Noise RMS: ${dL.noiseRms.toFixed(4)}`;
   el("mSpikes").textContent = String(dL.spikesSuppressed + dR.spikesSuppressed);
-  el("mIntent").textContent = dL.isIntentional || dR.isIntentional ? "Состояние: Активное движение" : "Состояние: Покой";
-  el("mLatency").textContent = `${dL.processingMs.toFixed(2)} мс`;
-  el("mStability").textContent = `Стабильность: ${leftCorr.calibration.stability_score}%`;
+  el("mIntent").textContent = dL.isIntentional || dR.isIntentional ? "State: Active Motion" : "State: At Rest";
+  el("mLatency").textContent = `${dL.processingMs.toFixed(2)} ms`;
+  el("mStability").textContent = `Stability: ${leftCorr.calibration.stability_score}%`;
 
   requestAnimationFrame(tick);
 }

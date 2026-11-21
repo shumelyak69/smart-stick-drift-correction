@@ -82,12 +82,12 @@ def main() -> None:
     port = int(os.environ.get("PORT", "8765"))
     host = os.environ.get("HOST", "127.0.0.1")
     server = ThreadingHTTPServer((host, port), SmartDriftHandler)
-    print(f"Smart Stick Drift Correction запущен: http://{host}:{port}")
-    print("Нажмите Ctrl+C для остановки.")
+    print(f"Smart Stick Drift Correction server running at: http://{host}:{port}")
+    print("Press Ctrl+C to stop.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nСервер остановлен.")
+        print("\nServer stopped.")
     finally:
         server.server_close()
 

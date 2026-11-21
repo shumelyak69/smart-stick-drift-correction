@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,66 +12,63 @@
       <div class="brand-dot" id="statusDot"></div>
       <div>
         <h1>Smart Stick Drift Correction</h1>
-        <span id="gamepadStatus">Источник: Симулятор дрифта (подключите геймпад для реальных данных)</span>
+        <span id="gamepadStatus">Source: Drift Simulator (connect a gamepad for live hardware telemetry)</span>
       </div>
     </div>
     <div class="topbar-controls">
-      <select id="inputSource" title="Источник сигнала">
-        <option value="simulator">Симулятор дрифта</option>
-        <option value="gamepad">Реальный геймпад (Web Gamepad API)</option>
+      <select id="inputSource" title="Signal Source">
+        <option value="simulator">Drift Simulator</option>
+        <option value="gamepad">Physical Gamepad (Web Gamepad API)</option>
       </select>
-      <button id="btnCalibrate" class="btn-primary">Автокалибровка</button>
-      <button id="btnSaveConfig">Сохранить config.json</button>
+      <button id="btnCalibrate" class="btn-primary">Auto-Calibrate</button>
+      <button id="btnSaveConfig">Save config.json</button>
     </div>
   </header>
 
   <main class="container">
-    <!-- Calibration progress banner -->
     <div id="calBanner" class="cal-banner">
       <div>
-        <strong>Автоматическая калибровка...</strong>
-        <div id="calHint" style="font-size:12px;color:var(--muted);">Не трогайте стики в течение 2.5 секунд.</div>
+        <strong>Running Auto-Calibration...</strong>
+        <div id="calHint" style="font-size:12px;color:var(--muted);">Leave both analog sticks untouched for 2.5 seconds.</div>
       </div>
       <div class="progress-bar"><div id="calProgress" class="progress-fill"></div></div>
     </div>
 
-    <!-- Live telemetry metrics -->
     <section class="status-strip">
       <div class="metric-card">
-        <div class="metric-label">Диагноз стика (L)</div>
-        <div id="faultBadge" class="badge badge-ok">Норма</div>
-        <div class="metric-sub" id="modeLabel">Режим: Action (адаптивный)</div>
+        <div class="metric-label">Stick Diagnosis (L)</div>
+        <div id="faultBadge" class="badge badge-ok">Nominal</div>
+        <div class="metric-sub" id="modeLabel">Mode: Action (Adaptive)</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Смещение центра (Bias)</div>
+        <div class="metric-label">Center Offset (Bias)</div>
         <div class="metric-value" id="mBias">0.0%</div>
-        <div class="metric-sub" id="mCalState">Не откалиброван</div>
+        <div class="metric-sub" id="mCalState">Uncalibrated</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Динамическая мёртвая зона</div>
+        <div class="metric-label">Dynamic Deadzone</div>
         <div class="metric-value" id="mDynDz">1.2%</div>
-        <div class="metric-sub" id="mNoise">Шум RMS: 0.005</div>
+        <div class="metric-sub" id="mNoise">Noise RMS: 0.005</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Подавлено скачков</div>
+        <div class="metric-label">Spikes Suppressed</div>
         <div class="metric-value" id="mSpikes">0</div>
-        <div class="metric-sub" id="mIntent">Состояние: Покой</div>
+        <div class="metric-sub" id="mIntent">State: At Rest</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Задержка DSP</div>
-        <div class="metric-value" id="mLatency">0.02 мс</div>
-        <div class="metric-sub" id="mStability">Стабильность: 100%</div>
+        <div class="metric-label">DSP Frame Time</div>
+        <div class="metric-value" id="mLatency">0.02 ms</div>
+        <div class="metric-sub" id="mStability">Stability: 100%</div>
       </div>
     </section>
 
-    <!-- Main visualizers -->
     <section class="main-grid">
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Визуализация стиков (Real-Time)</span>
+          <span class="panel-title">Real-Time Stick Vector Scopes</span>
           <div class="legend">
-            <span><i class="dot dot-raw"></i>Исходный</span>
-            <span><i class="dot dot-out"></i>Скорректированный</span>
+            <span><i class="dot dot-raw"></i>Raw Signal</span>
+            <span><i class="dot dot-out"></i>Corrected Output</span>
           </div>
         </div>
         <div class="sticks-row">
@@ -96,54 +93,53 @@
 
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Осциллограф сигнала (Ось X)</span>
+          <span class="panel-title">Signal Oscilloscope (X Axis)</span>
           <select id="scopeStick" style="padding:4px 8px;font-size:12px;">
-            <option value="left">Левый стик (X)</option>
-            <option value="right">Правый стик (X)</option>
+            <option value="left">Left Stick (X)</option>
+            <option value="right">Right Stick (X)</option>
           </select>
         </div>
         <canvas id="canvasScope" class="scope-canvas" width="560" height="220"></canvas>
         <div id="simPanel" style="margin-top:12px;">
-          <div class="panel-title" style="margin-bottom:6px;">Симулятор неисправностей стика</div>
+          <div class="panel-title" style="margin-bottom:6px;">Fault Injection Simulator</div>
           <div class="sim-toggles">
-            <label class="toggle-chip"><input type="checkbox" id="simBias" checked /> Смещение центра</label>
-            <label class="toggle-chip"><input type="checkbox" id="simJitter" checked /> Шум потенциометра</label>
-            <label class="toggle-chip"><input type="checkbox" id="simSpikes" checked /> Импульсные скачки</label>
-            <label class="toggle-chip"><input type="checkbox" id="simThermal" /> Медленный дрифт</label>
-            <label class="toggle-chip"><input type="checkbox" id="simMicroAim" /> Микро-прицеливание (R)</label>
+            <label class="toggle-chip"><input type="checkbox" id="simBias" checked /> Center Bias</label>
+            <label class="toggle-chip"><input type="checkbox" id="simJitter" checked /> Potentiometer Jitter</label>
+            <label class="toggle-chip"><input type="checkbox" id="simSpikes" checked /> Impulse Spikes</label>
+            <label class="toggle-chip"><input type="checkbox" id="simThermal" /> Slow Thermal Drift</label>
+            <label class="toggle-chip"><input type="checkbox" id="simMicroAim" /> Micro-Aim Pattern (R)</label>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Profiles & Settings + Quality Benchmark -->
     <section class="main-grid">
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Профили игр и настройки</span>
-          <button id="btnResetCal" class="btn-danger" style="padding:4px 10px;font-size:12px;">Сброс калибровки</button>
+          <span class="panel-title">Profiles & Filter Tuning</span>
+          <button id="btnResetCal" class="btn-danger" style="padding:4px 10px;font-size:12px;">Reset Calibration</button>
         </div>
 
         <div class="profiles-grid" id="profilesGrid"></div>
         <div id="profileDesc" style="font-size:12px;color:var(--muted);"></div>
 
         <details class="advanced">
-          <summary>Расширенные параметры фильтра (ручная настройка)</summary>
+          <summary>Advanced Filter Parameters (Manual Override)</summary>
           <div class="slider-grid">
             <div class="slider-item">
-              <label>Интенсивность фильтрации <span id="valIntensity">55%</span></label>
-              <input type="range" id="slIntensity" min="0" max="1" step="0.05" value="0.55" />
+              <label>Filter Intensity <span id="valIntensity">60%</span></label>
+              <input type="range" id="slIntensity" min="0" max="1" step="0.05" value="0.60" />
             </div>
             <div class="slider-item">
-              <label>Компенсация смещения <span id="valBias">100%</span></label>
+              <label>Bias Compensation <span id="valBias">100%</span></label>
               <input type="range" id="slBias" min="0" max="1" step="0.05" value="1.0" />
             </div>
             <div class="slider-item">
-              <label>Чувствительность мелких движений <span id="valMicro">82%</span></label>
-              <input type="range" id="slMicro" min="0" max="1" step="0.05" value="0.82" />
+              <label>Micro-Movement Sensitivity <span id="valMicro">75%</span></label>
+              <input type="range" id="slMicro" min="0" max="1" step="0.05" value="0.75" />
             </div>
             <div class="slider-item">
-              <label>Ограничение задержки <span id="valLatency">4.0 мс</span></label>
+              <label>Latency Budget <span id="valLatency">4.0 ms</span></label>
               <input type="range" id="slLatency" min="1" max="10" step="0.5" value="4.0" />
             </div>
           </div>
@@ -152,19 +148,19 @@
 
       <div class="panel">
         <div class="panel-header">
-          <span class="panel-title">Система проверки качества</span>
-          <button id="btnBenchmark" class="btn-primary" style="padding:5px 12px;font-size:12px;">Запустить тест качества</button>
+          <span class="panel-title">Quality Verification Suite</span>
+          <button id="btnBenchmark" class="btn-primary" style="padding:5px 12px;font-size:12px;">Run Quality Benchmark</button>
         </div>
         <div style="font-size:12px;color:var(--muted);">
-          Измеряет остаточный дрифт, задержку обработки, точность мелких движений и подавление скачков на эталонном наборе сценариев для активного профиля.
+          Evaluates residual drift, per-frame DSP execution time, micro-movement tracking accuracy, and spike rejection across standardized test scenarios.
         </div>
         <div class="bench-grid" id="benchResults">
-          <div class="bench-item"><div class="k">Остаточный дрифт</div><div class="v" id="bResidual">—</div></div>
-          <div class="bench-item"><div class="k">Задержка DSP</div><div class="v" id="bLatency">—</div></div>
-          <div class="bench-item"><div class="k">Точность микро-аима</div><div class="v" id="bMicro">—</div></div>
-          <div class="bench-item"><div class="k">Подавлено скачков</div><div class="v" id="bSpikes">—</div></div>
-          <div class="bench-item"><div class="k">Ложные срабатывания</div><div class="v" id="bFalse">—</div></div>
-          <div class="bench-item"><div class="k">Стабильность</div><div class="v" id="bStability">—</div></div>
+          <div class="bench-item"><div class="k">Residual Drift</div><div class="v" id="bResidual">—</div></div>
+          <div class="bench-item"><div class="k">DSP Frame Time</div><div class="v" id="bLatency">—</div></div>
+          <div class="bench-item"><div class="k">Micro-Aim Accuracy</div><div class="v" id="bMicro">—</div></div>
+          <div class="bench-item"><div class="k">Spikes Suppressed</div><div class="v" id="bSpikes">—</div></div>
+          <div class="bench-item"><div class="k">False Positives</div><div class="v" id="bFalse">—</div></div>
+          <div class="bench-item"><div class="k">Stability Score</div><div class="v" id="bStability">—</div></div>
         </div>
       </div>
     </section>

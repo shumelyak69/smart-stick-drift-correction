@@ -4,7 +4,7 @@ export const PROFILES = {
   fps: {
     name: "fps",
     label: "FPS",
-    description: "Минимальная задержка и высокая точность мелких движений (прицеливание).",
+    description: "Minimal latency and high precision for fine micro-aiming movements.",
     filterIntensity: 0.35,
     biasCompensation: 1.0,
     microSensitivity: 0.90,
@@ -18,7 +18,7 @@ export const PROFILES = {
   action: {
     name: "action",
     label: "Action",
-    description: "Сбалансированная и плавная коррекция для большинства жанров.",
+    description: "Balanced smoothing and wiper dropout protection for general gameplay.",
     filterIntensity: 0.60,
     biasCompensation: 1.0,
     microSensitivity: 0.75,
@@ -32,7 +32,7 @@ export const PROFILES = {
   racing: {
     name: "racing",
     label: "Racing",
-    description: "Максимально плавное управление без резких скачков и дрожания.",
+    description: "Smooth steering control without sudden twitches or high-frequency chatter.",
     filterIntensity: 0.78,
     biasCompensation: 1.0,
     microSensitivity: 0.65,
@@ -46,7 +46,7 @@ export const PROFILES = {
   heavy: {
     name: "heavy",
     label: "Heavy",
-    description: "Максимальное подавление провалов контакта и дребезга изношенного стика.",
+    description: "Maximum stabilization for heavily worn potentiometers with contact dropouts.",
     filterIntensity: 0.88,
     biasCompensation: 1.0,
     microSensitivity: 0.55,
@@ -60,7 +60,7 @@ export const PROFILES = {
   custom: {
     name: "custom",
     label: "Custom",
-    description: "Ручная настройка параметров адаптивного фильтра.",
+    description: "Manual configuration of all adaptive filter parameters.",
     filterIntensity: 0.60,
     biasCompensation: 1.0,
     microSensitivity: 0.75,
@@ -163,7 +163,7 @@ export class AdaptiveStickCorrector {
 
   calibrateFromSamples(samples) {
     if (samples.length < 20) {
-      return { ok: false, message: "Недостаточно данных для калибровки." };
+      return { ok: false, message: "Insufficient samples collected for calibration." };
     }
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     let sumX = 0, sumY = 0;
@@ -179,7 +179,7 @@ export class AdaptiveStickCorrector {
     if (maxX - minX > 0.25 || maxY - minY > 0.25) {
       return {
         ok: false,
-        message: "Обнаружено активное движение стика! Отпустите стик и повторите.",
+        message: "Stick movement detected during calibration. Release the stick and retry.",
       };
     }
 
@@ -207,7 +207,7 @@ export class AdaptiveStickCorrector {
     this.euroY.reset();
     this.historyX = [];
     this.historyY = [];
-    return { ok: true, message: "Калибровка успешно завершена." };
+    return { ok: true, message: "Calibration completed." };
   }
 
   process(rawX, rawY, dt = 1 / 60) {

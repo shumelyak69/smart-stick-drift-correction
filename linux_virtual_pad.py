@@ -59,15 +59,15 @@ def kill_stale_instances() -> None:
 
 def list_devices() -> None:
     if evdev is None:
-        print("Модуль 'evdev' не установлен. Установите его: sudo pacman -S python-evdev")
+        print("Module 'evdev' is not installed. Install it via: sudo pacman -S python-evdev")
         sys.exit(1)
 
     devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
     if not devices:
-        print("Устройства ввода не найдены.")
+        print("No input devices found.")
         return
 
-    print("Доступные устройства ввода:")
+    print("Available input devices:")
     for dev in devices:
         caps = dev.capabilities()
         has_abs = ecodes.EV_ABS in caps
@@ -101,7 +101,7 @@ def calibrate_evdev(
     profile_name: str,
     duration_sec: float = 1.5,
 ) -> None:
-    print(f"Калибровка через evdev ({duration_sec:.1f} сек)... Не трогайте стики!")
+    print(f"Calibrating via evdev ({duration_sec:.1f}s)... Leave both sticks untouched.")
     samples_l = []
     samples_r = []
     t_end = time.perf_counter() + duration_sec
@@ -128,7 +128,7 @@ def calibrate_evdev(
             },
         }
         cfg_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"Калибровка сохранена в {cfg_file}")
+        print(f"Calibration saved to {cfg_file}")
 
 
 def create_clean_uinput(dev: "InputDevice") -> "UInput":
@@ -175,14 +175,14 @@ def run_bridge(
     do_calibrate: bool = False,
 ) -> None:
     if evdev is None:
-        print("Ошибка: установите пакет evdev (sudo pacman -S python-evdev).")
+        print("Error: install python-evdev (sudo pacman -S python-evdev).")
         sys.exit(1)
 
     kill_stale_instances()
     time.sleep(0.15)
 
     dev = InputDevice(device_path)
-    print(f"Подключён физический контроллер: {dev.name} ({dev.path})")
+    print(f"Connected physical controller: {dev.name} ({dev.path})")
 
     profile = PROFILES.get(profile_name, PROFILES["action"])
     left_corr = AdaptiveStickCorrector(profile)
@@ -216,11 +216,11 @@ def run_bridge(
                     loaded_ok = True
             if loaded_ok:
                 print(
-                    f"Калибровка загружена: L=({left_corr.calibration.center_x:+.4f}, {left_corr.calibration.center_y:+.4f}) "
+                    f"Loaded calibration: L=({left_corr.calibration.center_x:+.4f}, {left_corr.calibration.center_y:+.4f}) "
                     f"R=({right_corr.calibration.center_x:+.4f}, {right_corr.calibration.center_y:+.4f})"
                 )
         except Exception as exc:
-            print(f"Предупреждение: не удалось загрузить {cfg_file}: {exc}")
+            print(f"Warning: failed to load {cfg_file}: {exc}")
 
     if do_calibrate or not loaded_ok:
         calibrate_evdev(dev, abs_caps, left_corr, right_corr, cfg_file, profile_name, duration_sec=1.2)
@@ -228,13 +228,13 @@ def run_bridge(
     if grab:
         try:
             dev.grab()
-            print("EVIOCGRAB активен — физический контроллер скрыт от игр (защита от двойного ввода).")
+            print("EVIOCGRAB active — physical controller hidden from games (double-input protection).")
         except OSError as exc:
-            print(f"Не удалось захватить устройство (EVIOCGRAB): {exc}")
+            print(f"Failed to grab device (EVIOCGRAB): {exc}")
 
     ui = create_clean_uinput(dev)
-    print(f"Создан виртуальный контроллер: {ui.name} | Профиль: {profile.label}")
-    print("Нажмите Ctrl+C для остановки.")
+    print(f"Created virtual controller: {ui.name} | Profile: {profile.label}")
+    print("Press Ctrl+C to stop.")
 
     raw_state: Dict[int, float] = {c: 0.0 for c in STICK_AXES}
     last_out: Dict[int, int] = {}
@@ -286,7 +286,7 @@ def run_bridge(
             if need_syn:
                 ui.syn()
     except KeyboardInterrupt:
-        print("\nОстановка виртуального контроллера...")
+        print("\nStopping virtual controller...")
     finally:
         if grab:
             try:
@@ -299,12 +299,12 @@ def run_bridge(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Smart Stick Drift Correction — Linux Virtual Gamepad")
-    parser.add_argument("--list", action="store_true", help="Показать доступные устройства ввода")
-    parser.add_argument("--device", type=str, help="Путь к устройству (например, /dev/input/event21)")
+    parser.add_argument("--list", action="store_true", help="List available input devices")
+    parser.add_argument("--device", type=str, help="Input device path (e.g., /dev/input/event21)")
     parser.add_argument("--profile", type=str, default="action", choices=list(PROFILES.keys()))
-    parser.add_argument("--no-grab", action="store_true", help="Не скрывать физический геймпад (отключить EVIOCGRAB)")
-    parser.add_argument("--config", type=str, default="config.json", help="Путь к файлу калибровки config.json")
-    parser.add_argument("--calibrate", action="store_true", help="Выполнить автокалибровку стиков через evdev при запуске")
+    parser.add_argument("--no-grab", action="store_true", help="Do not grab physical device (disable EVIOCGRAB)")
+    parser.add_argument("--config", type=str, default="config.json", help="Path to calibration config.json")
+    parser.add_argument("--calibrate", action="store_true", help="Run evdev stick auto-calibration on startup")
     args = parser.parse_args()
 
     if args.list:
@@ -312,7 +312,7 @@ def main() -> None:
         return
 
     if not args.device:
-        parser.error("Укажите --device /dev/input/eventX или --list")
+        parser.error("Specify --device /dev/input/eventX or --list")
 
     run_bridge(
         args.device,

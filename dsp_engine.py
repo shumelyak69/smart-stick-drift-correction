@@ -40,7 +40,7 @@ PROFILES: Dict[str, FilterProfile] = {
     "fps": FilterProfile(
         name="fps",
         label="FPS",
-        description="Минимальная задержка и высокая точность мелких движений.",
+        description="Minimal latency and high precision for fine micro-aiming movements.",
         filter_intensity=0.45,
         bias_compensation=1.0,
         micro_sensitivity=0.88,
@@ -54,7 +54,7 @@ PROFILES: Dict[str, FilterProfile] = {
     "action": FilterProfile(
         name="action",
         label="Action",
-        description="Плавная коррекция и защита от срывов изношенного стика.",
+        description="Balanced smoothing and wiper dropout protection for general gameplay.",
         filter_intensity=0.72,
         bias_compensation=1.0,
         micro_sensitivity=0.75,
@@ -68,7 +68,7 @@ PROFILES: Dict[str, FilterProfile] = {
     "racing": FilterProfile(
         name="racing",
         label="Racing",
-        description="Максимально плавное управление без рывков и дрожания.",
+        description="Smooth steering control without sudden twitches or high-frequency chatter.",
         filter_intensity=0.85,
         bias_compensation=1.0,
         micro_sensitivity=0.65,
@@ -82,7 +82,7 @@ PROFILES: Dict[str, FilterProfile] = {
     "heavy": FilterProfile(
         name="heavy",
         label="Heavy (Worn Stick)",
-        description="Усиленная стабилизация сильно изношенного потенциометра без рывков.",
+        description="Maximum stabilization for heavily worn potentiometers with contact dropouts.",
         filter_intensity=0.92,
         bias_compensation=1.0,
         micro_sensitivity=0.60,
@@ -96,7 +96,7 @@ PROFILES: Dict[str, FilterProfile] = {
     "custom": FilterProfile(
         name="custom",
         label="Custom",
-        description="Ручная настройка всех параметров фильтрации.",
+        description="Manual configuration of all adaptive filter parameters.",
         filter_intensity=0.72,
         bias_compensation=1.0,
         micro_sensitivity=0.75,
@@ -210,7 +210,7 @@ class AdaptiveStickCorrector:
 
     def calibrate_from_samples(self, samples: List[Tuple[float, float]]) -> Tuple[bool, str, CalibrationData]:
         if len(samples) < 20:
-            return False, "Недостаточно данных для калибровки.", self.calibration
+            return False, "Insufficient samples collected for calibration.", self.calibration
 
         xs = [s[0] for s in samples]
         ys = [s[1] for s in samples]
@@ -220,7 +220,7 @@ class AdaptiveStickCorrector:
         if span_x > 0.20 or span_y > 0.20:
             return (
                 False,
-                "Обнаружено движение стика! Отпустите стик и повторите калибровку.",
+                "Stick movement detected during calibration. Release the stick and retry.",
                 self.calibration,
             )
 
@@ -231,7 +231,7 @@ class AdaptiveStickCorrector:
         if abs(mean_x) > 0.22 or abs(mean_y) > 0.22:
             return (
                 False,
-                f"Стик отклонён слишком сильно ({mean_x:+.2f}, {mean_y:+.2f}). Отпустите стик в центр.",
+                f"Stick offset too large ({mean_x:+.2f}, {mean_y:+.2f}). Release the stick to center.",
                 self.calibration,
             )
 
@@ -258,7 +258,7 @@ class AdaptiveStickCorrector:
         self._clean_x = 0.0
         self._clean_y = 0.0
         self._glitch_streak = 0
-        return True, "Калибровка успешно завершена.", self.calibration
+        return True, "Calibration completed.", self.calibration
 
     def process(self, raw_x: float, raw_y: float, dt: float = 0.008) -> StickDiagnostics:
         t0 = time.perf_counter()
